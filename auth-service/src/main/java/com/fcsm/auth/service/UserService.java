@@ -16,9 +16,6 @@ public class UserService {
     private UserRepository userRepository;
 
     @Autowired
-    private UserDetailsServiceImpl userDetailsService;
-    
-    @Autowired
     private PasswordEncoder passwordEncoder;
     
     public User createUser(User user) {
