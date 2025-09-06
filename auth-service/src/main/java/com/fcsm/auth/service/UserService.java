@@ -14,9 +14,6 @@ public class UserService {
     
     @Autowired
     private UserRepository userRepository;
-
-    @Autowired
-    private UserDetailsServiceImpl userDetailsService;
     
     @Autowired
     private PasswordEncoder passwordEncoder;
