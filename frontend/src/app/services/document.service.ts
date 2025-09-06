@@ -57,4 +57,12 @@ export class DocumentService {
   deleteDocument(id: number): Observable<string> {
     return this.http.delete<string>(`${this.API_URL}/${id}`);
   }
+
+  generateAISummary(content: string): Observable<string> {
+    return this.http.post<string>(`${this.API_URL}/ai/generate-summary`, content);
+  }
+
+  generateAITags(content: string, title: string): Observable<string[]> {
+    return this.http.post<string[]>(`${this.API_URL}/ai/generate-tags?content=${encodeURIComponent(content)}&title=${encodeURIComponent(title)}`, {});
+  }
 }

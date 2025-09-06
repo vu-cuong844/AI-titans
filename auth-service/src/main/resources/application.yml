@@ -29,7 +29,7 @@ spring:
     user:
       name: admin
       password: admin
-      
+
 # Thay đổi đường dẫn truy cập Swagger UI
 springdoc:
   api-docs:
@@ -49,4 +49,4 @@ jwt:
 logging:
   level:
     com.fcsm.auth: DEBUG
-    org.springframework.security: DEBUG
+    org.springframework.security: TRACE

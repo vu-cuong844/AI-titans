@@ -1,129 +1,52 @@
 package com.fcsm.document.dto;
 
 import com.fcsm.document.model.SharingLevel;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class DocumentCreateRequest {
-    @NotBlank
-    @Size(max = 200)
+    @NotBlank(message = "Tiêu đề là bắt buộc")
+    @Size(max = 200, message = "Tiêu đề không được vượt quá 200 ký tự")
     private String title;
-    
-    @Size(max = 1000)
+
+    @Size(max = 1000, message = "Tóm tắt không được vượt quá 1000 ký tự")
     private String summary;
-    
-    @NotBlank
+
+    @Size(max = 255, message = "Tên file không được vượt quá 255 ký tự")
     private String fileName;
-    
+
+    @Size(max = 255, message = "Tên file gốc không được vượt quá 255 ký tự")
     private String originalFileName;
-    
+
     private String fileType;
-    
+
+    @Max(value = 10485760, message = "Kích thước file không được vượt quá 10MB")
     private Long fileSize;
-    
+
     private String filePath;
-    
-    @NotNull
+
+    @NotNull(message = "Mức độ chia sẻ là bắt buộc")
     private SharingLevel sharingLevel;
-    
+
     private String department;
-    
+
     private List<String> tags;
-    
-    private String content;
-    
-    // Constructors
-    public DocumentCreateRequest() {}
-    
-    // Getters and Setters
-    public String getTitle() {
-        return title;
-    }
-    
-    public void setTitle(String title) {
-        this.title = title;
-    }
-    
-    public String getSummary() {
-        return summary;
-    }
-    
-    public void setSummary(String summary) {
-        this.summary = summary;
-    }
-    
-    public String getFileName() {
-        return fileName;
-    }
-    
-    public void setFileName(String fileName) {
-        this.fileName = fileName;
-    }
-    
-    public String getOriginalFileName() {
-        return originalFileName;
-    }
-    
-    public void setOriginalFileName(String originalFileName) {
-        this.originalFileName = originalFileName;
-    }
-    
-    public String getFileType() {
-        return fileType;
-    }
-    
-    public void setFileType(String fileType) {
-        this.fileType = fileType;
-    }
-    
-    public Long getFileSize() {
-        return fileSize;
-    }
-    
-    public void setFileSize(Long fileSize) {
-        this.fileSize = fileSize;
-    }
-    
-    public String getFilePath() {
-        return filePath;
-    }
-    
-    public void setFilePath(String filePath) {
-        this.filePath = filePath;
-    }
-    
-    public SharingLevel getSharingLevel() {
-        return sharingLevel;
-    }
-    
-    public void setSharingLevel(SharingLevel sharingLevel) {
-        this.sharingLevel = sharingLevel;
-    }
-    
-    public String getDepartment() {
-        return department;
-    }
-    
-    public void setDepartment(String department) {
-        this.department = department;
-    }
-    
-    public List<String> getTags() {
-        return tags;
-    }
-    
-    public void setTags(List<String> tags) {
-        this.tags = tags;
-    }
-    
-    public String getContent() {
-        return content;
-    }
-    
-    public void setContent(String content) {
-        this.content = content;
-    }
+
+    @Size(max = 10000, message = "Nội dung không được vượt quá 10000 ký tự")
+    private String content; // Nội dung không bắt buộc nhưng có giới hạn độ dài
+
+    private MultipartFile file;
 }
