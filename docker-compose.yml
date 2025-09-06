@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:h2:mem:testdb
+    networks:
+      - knowledge-sharing-network
+
+  document-service:
+    build:
+      context: .
+      dockerfile: document-service/Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:h2:mem:testdb
+    networks:
+      - knowledge-sharing-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "4200:80"
+    depends_on:
+      - auth-service
+      - document-service
+    networks:
+      - knowledge-sharing-network
+
+networks:
+  knowledge-sharing-network:
+    driver: bridge
