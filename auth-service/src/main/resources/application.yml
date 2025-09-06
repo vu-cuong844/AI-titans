@@ -13,6 +13,9 @@ spring:
     console:
       enabled: true
       path: /h2-console
+      settings:
+        web-allow-others: true
+        trace: false
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
@@ -46,4 +49,6 @@ jwt:
 logging:
   level:
     com.fcsm.auth: DEBUG
-    org.springframework.security: DEBUG
+    org.springframework.security: TRACE
+    org.springframework.security.authentication:DEBUG
+    org.springframework.security.web.authentication:DEBUG
