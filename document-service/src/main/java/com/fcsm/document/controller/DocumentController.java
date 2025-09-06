@@ -4,6 +4,7 @@ import com.fcsm.document.dto.DocumentCreateRequest;
 import com.fcsm.document.dto.DocumentDto;
 import com.fcsm.document.dto.DocumentSearchRequest;
 import com.fcsm.document.service.DocumentService;
+import com.fcsm.document.service.AIService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -19,6 +20,9 @@ public class DocumentController {
     
     @Autowired
     private DocumentService documentService;
+    
+    @Autowired
+    private AIService aiService;
     
     // Mock user data - in real implementation, get from JWT token
     private Long getCurrentUserId() {
@@ -45,7 +49,7 @@ public class DocumentController {
     }
     
     @GetMapping("/{id}")
-    public ResponseEntity<DocumentDto> getDocument(@PathVariable Long id) {
+    public ResponseEntity<DocumentDto> getDocument(@PathVariable("id") Long id) {
         return documentService.getDocumentById(id, getCurrentUserId(), getCurrentUserDepartment())
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
@@ -53,8 +57,8 @@ public class DocumentController {
     
     @GetMapping
     public ResponseEntity<Page<DocumentDto>> getDocuments(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
         Page<DocumentDto> documents = documentService.getAccessibleDocuments(
             getCurrentUserId(), 
             getCurrentUserDepartment(), 
@@ -66,7 +70,7 @@ public class DocumentController {
     
     @GetMapping("/top/viewed")
     public ResponseEntity<List<DocumentDto>> getTopViewedDocuments(
-            @RequestParam(defaultValue = "5") int limit) {
+            @RequestParam(value = "limit", defaultValue = "5") int limit) {
         List<DocumentDto> documents = documentService.getTopDocumentsByViewCount(
             getCurrentUserId(), 
             getCurrentUserDepartment(), 
@@ -77,7 +81,7 @@ public class DocumentController {
     
     @GetMapping("/top/starred")
     public ResponseEntity<List<DocumentDto>> getTopStarredDocuments(
-            @RequestParam(defaultValue = "5") int limit) {
+            @RequestParam(value = "limit", defaultValue = "5") int limit) {
         List<DocumentDto> documents = documentService.getTopDocumentsByStarCount(
             getCurrentUserId(), 
             getCurrentUserDepartment(), 
@@ -88,7 +92,7 @@ public class DocumentController {
     
     @GetMapping("/recent")
     public ResponseEntity<List<DocumentDto>> getRecentDocuments(
-            @RequestParam(defaultValue = "5") int limit) {
+            @RequestParam(value = "limit", defaultValue = "5") int limit) {
         List<DocumentDto> documents = documentService.getRecentDocuments(
             getCurrentUserId(), 
             getCurrentUserDepartment(), 
@@ -99,7 +103,7 @@ public class DocumentController {
     
     @GetMapping("/my-documents")
     public ResponseEntity<List<DocumentDto>> getMyDocuments(
-            @RequestParam(defaultValue = "5") int limit) {
+            @RequestParam(value = "limit", defaultValue = "5") int limit) {
         List<DocumentDto> documents = documentService.getUserDocuments(getCurrentUserId(), limit);
         return ResponseEntity.ok(documents);
     }
@@ -115,7 +119,7 @@ public class DocumentController {
     }
     
     @PostMapping("/{id}/star")
-    public ResponseEntity<String> starDocument(@PathVariable Long id) {
+    public ResponseEntity<String> starDocument(@PathVariable("id") Long id) {
         boolean success = documentService.starDocument(id, getCurrentUserId(), getCurrentUserDepartment());
         if (success) {
             return ResponseEntity.ok("Document starred successfully");
@@ -130,5 +134,17 @@ public class DocumentController {
             return ResponseEntity.ok("Document deleted successfully");
         }
         return ResponseEntity.badRequest().body("Failed to delete document");
+    }
+    
+    @PostMapping("/ai/generate-summary")
+    public ResponseEntity<String> generateSummary(@RequestBody String content) {
+        String summary = aiService.generateSummary(content);
+        return ResponseEntity.ok(summary);
+    }
+    
+    @PostMapping("/ai/generate-tags")
+    public ResponseEntity<List<String>> generateTags(@RequestParam String content, @RequestParam String title) {
+        List<String> tags = aiService.generateTags(content, title);
+        return ResponseEntity.ok(tags);
     }
 }

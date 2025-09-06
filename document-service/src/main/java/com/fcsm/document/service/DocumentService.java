@@ -4,8 +4,8 @@ import com.fcsm.document.dto.DocumentCreateRequest;
 import com.fcsm.document.dto.DocumentDto;
 import com.fcsm.document.dto.DocumentSearchRequest;
 import com.fcsm.document.model.Document;
-import com.fcsm.document.model.SharingLevel;
 import com.fcsm.document.repository.DocumentRepository;
+import com.fcsm.document.service.AIService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -26,10 +26,20 @@ public class DocumentService {
     @Autowired
     private DocumentRepository documentRepository;
     
+    @Autowired
+    private AIService aiService;
+    
     public DocumentDto createDocument(DocumentCreateRequest request, Long userId, String userName, String department) {
         Document document = new Document();
         document.setTitle(request.getTitle());
-        document.setSummary(request.getSummary());
+        
+        // Tự động tạo tóm tắt nếu chưa có hoặc rỗng
+        String summary = request.getSummary();
+        if (summary == null || summary.trim().isEmpty()) {
+            summary = aiService.generateSummary(request.getContent());
+        }
+        document.setSummary(summary);
+        
         document.setFileName(request.getFileName());
         document.setOriginalFileName(request.getOriginalFileName());
         document.setFileType(request.getFileType());
@@ -39,7 +49,14 @@ public class DocumentService {
         document.setDepartment(department);
         document.setCreatedBy(userId);
         document.setCreatedByName(userName);
-        document.setTags(request.getTags());
+        
+        // Tự động tạo tags nếu chưa có hoặc rỗng
+        List<String> tags = request.getTags();
+        if (tags == null || tags.isEmpty()) {
+            tags = aiService.generateTags(request.getContent(), request.getTitle());
+        }
+        document.setTags(tags);
+        
         document.setContent(request.getContent());
         document.setCreatedAt(LocalDateTime.now());
         document.setUpdatedAt(LocalDateTime.now());

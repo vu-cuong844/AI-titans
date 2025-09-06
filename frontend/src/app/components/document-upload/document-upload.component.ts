@@ -55,29 +55,35 @@ import { DocumentCreateRequest } from '../../models/document.model';
                 <input #fileInput type="file" 
                        (change)="onFileSelected($event)"
                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                       multiple
                        style="display: none;">
                 
-                <div *ngIf="!selectedFile" class="upload-placeholder">
+                <div *ngIf="selectedFiles.length === 0" class="upload-placeholder">
                   <mat-icon>cloud_upload</mat-icon>
                   <p>Kéo thả file vào đây hoặc click để chọn file</p>
-                  <p class="file-types">Hỗ trợ: PDF, DOC, DOCX, JPG, PNG (tối đa 10MB)</p>
+                  <p class="file-types">Hỗ trợ: PDF, DOC, DOCX, JPG, PNG (tối đa 10MB mỗi file, tối đa 5 file)</p>
                 </div>
                 
-                <div *ngIf="selectedFile" class="file-selected">
-                  <mat-icon>description</mat-icon>
-                  <div class="file-info">
-                    <p class="file-name">{{ selectedFile.name }}</p>
-                    <p class="file-size">{{ formatFileSize(selectedFile.size) }}</p>
+                <div *ngIf="selectedFiles.length > 0" class="files-selected">
+                  <div *ngFor="let file of selectedFiles; let i = index" class="file-selected">
+                    <mat-icon>description</mat-icon>
+                    <div class="file-info">
+                      <p class="file-name">{{ file.name }}</p>
+                      <p class="file-size">{{ formatFileSize(file.size) }}</p>
+                    </div>
+                    <button mat-icon-button (click)="removeFile(i)" type="button">
+                      <mat-icon>close</mat-icon>
+                    </button>
                   </div>
-                  <button mat-icon-button (click)="removeFile()" type="button">
-                    <mat-icon>close</mat-icon>
-                  </button>
                 </div>
               </div>
               
-              <div *ngIf="uploadForm.get('file')?.hasError('required') && uploadForm.get('file')?.touched" 
+              <div *ngIf="uploadForm.get('files')?.hasError('required') && uploadForm.get('files')?.touched" 
                    class="error-message">
-                Vui lòng chọn file
+                Vui lòng chọn ít nhất một file
+              </div>
+              <div *ngIf="selectedFiles.length > 5" class="error-message">
+                Chỉ được chọn tối đa 5 file
               </div>
             </div>
 
@@ -99,12 +105,17 @@ import { DocumentCreateRequest } from '../../models/document.model';
               <mat-form-field class="full-width">
                 <mat-label>Tóm tắt</mat-label>
                 <textarea matInput formControlName="summary" 
-                          placeholder="Nhập tóm tắt nội dung tài liệu (tối đa 500 từ)"
+                          placeholder="Nhập tóm tắt nội dung tài liệu (tối đa 500 từ) hoặc để trống để tự động tạo"
                           rows="4"></textarea>
                 <mat-hint>{{ getSummaryWordCount() }}/500 từ</mat-hint>
                 <mat-error *ngIf="uploadForm.get('summary')?.hasError('maxlength')">
                   Tóm tắt không được vượt quá 500 từ
                 </mat-error>
+                <button mat-icon-button matSuffix (click)="generateAISummary()" 
+                        [disabled]="!selectedFiles.length" 
+                        matTooltip="Tự động tạo tóm tắt bằng AI">
+                  <mat-icon>auto_awesome</mat-icon>
+                </button>
               </mat-form-field>
 
               <mat-form-field class="half-width">
@@ -133,6 +144,11 @@ import { DocumentCreateRequest } from '../../models/document.model';
                        [matChipInputFor]="chipGrid"
                        [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
                        (matChipInputTokenEnd)="addTag($event)">
+                <button mat-icon-button matSuffix (click)="generateAITags()" 
+                        [disabled]="!selectedFiles.length" 
+                        matTooltip="Tự động tạo tags bằng AI">
+                  <mat-icon>auto_awesome</mat-icon>
+                </button>
               </mat-form-field>
             </div>
 
@@ -198,10 +214,20 @@ import { DocumentCreateRequest } from '../../models/document.model';
       margin-bottom: 16px;
     }
     
+    .files-selected {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
     .file-selected {
       display: flex;
       align-items: center;
       gap: 15px;
+      padding: 10px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      background-color: #f9f9f9;
     }
     
     .file-selected mat-icon {
@@ -262,7 +288,7 @@ import { DocumentCreateRequest } from '../../models/document.model';
 })
 export class DocumentUploadComponent implements OnInit {
   uploadForm: FormGroup;
-  selectedFile: File | null = null;
+  selectedFiles: File[] = [];
   tags: string[] = [];
   uploading = false;
   isDragOver = false;
@@ -279,7 +305,7 @@ export class DocumentUploadComponent implements OnInit {
       title: ['', [Validators.required, Validators.maxLength(200)]],
       summary: ['', [Validators.maxLength(500)]],
       sharingLevel: ['', Validators.required],
-      file: [null, Validators.required]
+      files: [null, Validators.required]
     });
   }
 
@@ -291,9 +317,9 @@ export class DocumentUploadComponent implements OnInit {
   }
 
   onFileSelected(event: any) {
-    const file = event.target.files[0];
-    if (file) {
-      this.validateAndSetFile(file);
+    const files = Array.from(event.target.files);
+    if (files.length > 0) {
+      this.validateAndSetFiles(files);
     }
   }
 
@@ -313,20 +339,12 @@ export class DocumentUploadComponent implements OnInit {
     
     const files = event.dataTransfer?.files;
     if (files && files.length > 0) {
-      this.validateAndSetFile(files[0]);
+      this.validateAndSetFiles(Array.from(files));
     }
   }
 
-  validateAndSetFile(file: File) {
-    // Check file size (10MB limit)
-    if (file.size > 10 * 1024 * 1024) {
-      this.snackBar.open('File quá lớn. Kích thước tối đa là 10MB', 'Đóng', {
-        duration: 3000
-      });
-      return;
-    }
-
-    // Check file type
+  validateAndSetFiles(files: File[]) {
+    const validFiles: File[] = [];
     const allowedTypes = [
       'application/pdf',
       'application/msword',
@@ -336,20 +354,41 @@ export class DocumentUploadComponent implements OnInit {
       'image/png'
     ];
 
-    if (!allowedTypes.includes(file.type)) {
-      this.snackBar.open('Loại file không được hỗ trợ. Chỉ chấp nhận PDF, DOC, DOCX, JPG, PNG', 'Đóng', {
+    for (const file of files) {
+      // Check file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        this.snackBar.open(`File "${file.name}" quá lớn. Kích thước tối đa là 10MB`, 'Đóng', {
+          duration: 3000
+        });
+        continue;
+      }
+
+      // Check file type
+      if (!allowedTypes.includes(file.type)) {
+        this.snackBar.open(`File "${file.name}" không được hỗ trợ. Chỉ chấp nhận PDF, DOC, DOCX, JPG, PNG`, 'Đóng', {
+          duration: 3000
+        });
+        continue;
+      }
+
+      validFiles.push(file);
+    }
+
+    // Check total file count (max 5)
+    if (this.selectedFiles.length + validFiles.length > 5) {
+      this.snackBar.open('Chỉ được chọn tối đa 5 file', 'Đóng', {
         duration: 3000
       });
       return;
     }
 
-    this.selectedFile = file;
-    this.uploadForm.patchValue({ file: file });
+    this.selectedFiles = [...this.selectedFiles, ...validFiles];
+    this.uploadForm.patchValue({ files: this.selectedFiles });
   }
 
-  removeFile() {
-    this.selectedFile = null;
-    this.uploadForm.patchValue({ file: null });
+  removeFile(index: number) {
+    this.selectedFiles.splice(index, 1);
+    this.uploadForm.patchValue({ files: this.selectedFiles });
   }
 
   addTag(event: any) {
@@ -372,40 +411,100 @@ export class DocumentUploadComponent implements OnInit {
     return summary.split(/\s+/).filter((word: string) => word.length > 0).length;
   }
 
+  generateAISummary() {
+    if (this.selectedFiles.length === 0) {
+      this.snackBar.open('Vui lòng chọn file trước khi tạo tóm tắt', 'Đóng', {
+        duration: 3000
+      });
+      return;
+    }
+
+    // Mock content for AI processing
+    const mockContent = 'Nội dung tài liệu mẫu để tạo tóm tắt tự động. Trong thực tế, nội dung sẽ được trích xuất từ file đã chọn.';
+    
+    this.documentService.generateAISummary(mockContent).subscribe({
+      next: (summary) => {
+        this.uploadForm.patchValue({ summary: summary });
+        this.snackBar.open('Tóm tắt đã được tạo tự động', 'Đóng', {
+          duration: 3000
+        });
+      },
+      error: (error) => {
+        console.error('Error generating AI summary:', error);
+        this.snackBar.open('Lỗi khi tạo tóm tắt tự động', 'Đóng', {
+          duration: 3000
+        });
+      }
+    });
+  }
+
+  generateAITags() {
+    if (this.selectedFiles.length === 0) {
+      this.snackBar.open('Vui lòng chọn file trước khi tạo tags', 'Đóng', {
+        duration: 3000
+      });
+      return;
+    }
+
+    const title = this.uploadForm.get('title')?.value || '';
+    const mockContent = 'Nội dung tài liệu mẫu để tạo tags tự động. Trong thực tế, nội dung sẽ được trích xuất từ file đã chọn.';
+    
+    this.documentService.generateAITags(mockContent, title).subscribe({
+      next: (generatedTags) => {
+        // Merge with existing tags, avoiding duplicates
+        const existingTags = new Set(this.tags);
+        const newTags = generatedTags.filter(tag => !existingTags.has(tag));
+        this.tags = [...this.tags, ...newTags];
+        this.snackBar.open(`${newTags.length} tags đã được tạo tự động`, 'Đóng', {
+          duration: 3000
+        });
+      },
+      error: (error) => {
+        console.error('Error generating AI tags:', error);
+        this.snackBar.open('Lỗi khi tạo tags tự động', 'Đóng', {
+          duration: 3000
+        });
+      }
+    });
+  }
+
   onSubmit() {
-    if (this.uploadForm.valid && this.selectedFile) {
+    if (this.uploadForm.valid && this.selectedFiles.length > 0) {
       this.uploading = true;
       
       const formValue = this.uploadForm.value;
-      const createRequest: DocumentCreateRequest = {
-        title: formValue.title,
-        summary: formValue.summary,
-        fileName: this.selectedFile.name,
-        originalFileName: this.selectedFile.name,
-        fileType: this.selectedFile.type,
-        fileSize: this.selectedFile.size,
-        filePath: '/uploads/' + this.selectedFile.name, // Mock path
-        sharingLevel: formValue.sharingLevel,
-        department: 'IT', // Mock department
-        tags: this.tags,
-        content: 'Mock content - in real implementation, extract content from file'
-      };
+      
+      // Upload multiple documents
+      const uploadPromises = this.selectedFiles.map(file => {
+        const createRequest: DocumentCreateRequest = {
+          title: formValue.title,
+          summary: formValue.summary,
+          fileName: file.name,
+          originalFileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          filePath: '/uploads/' + file.name, // Mock path
+          sharingLevel: formValue.sharingLevel,
+          department: 'IT', // Mock department
+          tags: this.tags,
+          content: 'Mock content - in real implementation, extract content from file'
+        };
 
-      this.documentService.createDocument(createRequest).subscribe({
-        next: (document) => {
-          this.uploading = false;
-          this.snackBar.open('Tài liệu đã được tải lên thành công', 'Đóng', {
-            duration: 3000
-          });
-          this.router.navigate(['/documents', document.id]);
-        },
-        error: (error) => {
-          this.uploading = false;
-          console.error('Error uploading document:', error);
-          this.snackBar.open('Lỗi khi tải lên tài liệu', 'Đóng', {
-            duration: 3000
-          });
-        }
+        return this.documentService.createDocument(createRequest).toPromise();
+      });
+
+      Promise.all(uploadPromises).then((documents) => {
+        this.uploading = false;
+        this.snackBar.open(`${documents.length} tài liệu đã được tải lên thành công`, 'Đóng', {
+          duration: 3000
+        });
+        this.router.navigate(['/home']);
+      }).catch((error) => {
+        this.uploading = false;
+        console.error('Error uploading documents:', error);
+        this.snackBar.open('Lỗi khi tải lên tài liệu', 'Đóng', {
+          duration: 3000
+        });
       });
     }
   }
@@ -422,3 +521,4 @@ export class DocumentUploadComponent implements OnInit {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 }
+

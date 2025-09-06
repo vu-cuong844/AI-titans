@@ -20,6 +20,17 @@ spring:
     show-sql: true
     defer-datasource-initialization: true
 
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+    tryItOutEnabled: true
+  show-actuator: true
+  packages-to-scan: com.fcsm.document
+
 logging:
   level:
     com.fcsm.document: DEBUG
